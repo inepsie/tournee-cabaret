@@ -166,14 +166,6 @@
   <div class="ctrl-row" id="villerow"><span class="gl">Ville</span></div>
   <div class="ctrl-row" id="famrow"><span class="gl">Famille</span></div>
   <div class="ctrl-row">
-    <span class="gl">Tri</span>
-    <select class="f" id="sort">
-      <option value="fam">Par famille (défaut)</option>
-      <option value="ville">Par ville</option>
-      <option value="nom">Par nom (A→Z)</option>
-      <option value="recept">Réceptivité (forte d'abord)</option>
-      <option value="tour">Ordre de tournée</option>
-    </select>
     <label class="toggle"><input type="checkbox" id="onlyhigh"> Confiance haute seulement</label>
     <button class="f nearbtn" aria-pressed="false">📍 Autour de moi</button>
     <button class="f nearoff hidden" aria-label="Quitter le mode autour de moi">✕</button>
@@ -236,7 +228,7 @@ villesPresentes.forEach(v=>{const n=D.lieux.filter(x=>x.v===v).length;
 document.getElementById('s-tot').textContent=D.lieux.length;
 document.getElementById('s-villes').textContent=villesPresentes.length;
 function badge(lbl,val){return '<span class="badge b-'+val+'"><span class="cap">'+lbl+'</span> '+val+'</span>';}
-const st={v:'all',g:'all',q:'',sort:'fam',high:false,near:false};
+const st={v:'all',g:'all',q:'',high:false,near:false};
 let geopos=null; // [lat,lng] du téléphone quand le mode Autour de moi est actif
 function hav(a,b){const R=6371000,r=Math.PI/180;
   const dp=(b[0]-a[0])*r,dl=(b[1]-a[1])*r;
@@ -275,14 +267,10 @@ function chainFrom(start,arr){
 }
 function idOf(x){return (x.g+'|'+x.n+'|'+x.v).replace(/"/g,'');}
 function sortLieux(arr){
-  const ORD={A:0,B:1,C:2,D:3,E:4,F:5,G:6,H:7},RC={Forte:0,Moyenne:1,Faible:2},CF={haute:0,moyenne:1,faible:2};
+  const ORD={A:0,B:1,C:2,D:3,E:4,F:5,G:6,H:7},CF={haute:0,moyenne:1,faible:2};
   const a=[...arr];
-  if(st.near&&geopos){return chainFrom(geopos,a);}
-  if(st.sort==='tour')a.sort((x,y)=>(VORDER.indexOf(x.v)-VORDER.indexOf(y.v))||((x.t??999)-(y.t??999)));
-  else if(st.sort==='nom')a.sort((x,y)=>x.n.localeCompare(y.n,'fr'));
-  else if(st.sort==='ville')a.sort((x,y)=>x.v.localeCompare(y.v,'fr')||x.n.localeCompare(y.n,'fr'));
-  else if(st.sort==='recept')a.sort((x,y)=>(RC[x.r]-RC[y.r])||x.n.localeCompare(y.n,'fr'));
-  else a.sort((x,y)=>(ORD[x.g]-ORD[y.g])||(CF[x.conf]-CF[y.conf])||x.n.localeCompare(y.n,'fr'));
+  if(st.near&&geopos){return chainFrom(geopos,a);} // mode 📍 : itinéraire de proche en proche
+  a.sort((x,y)=>(ORD[x.g]-ORD[y.g])||(CF[x.conf]-CF[y.conf])||x.n.localeCompare(y.n,'fr'));
   return a;
 }
 function passes(x){
@@ -314,7 +302,7 @@ function render(){
   content.innerHTML='';
   const rows=sortLieux(D.lieux.map(x=>({...x,vn:x.vnote})).filter(passes));
   let vis=rows.length;
-  if(st.sort==='fam'&&st.g==='all'&&!st.near){
+  if(st.g==='all'&&!st.near){
     // grouper par famille
     'ABCDEFGH'.split('').forEach(gid=>{
       const items=rows.filter(x=>x.g===gid);if(!items.length)return;
@@ -362,7 +350,6 @@ document.querySelectorAll('.controls .f[data-d]').forEach(b=>b.addEventListener(
     if(isMobile()){fpanel.classList.remove('open');ftog.setAttribute('aria-expanded','false');}
   }
 }));
-document.getElementById('sort').addEventListener('change',e=>{st.sort=e.target.value;render();});
 document.getElementById('onlyhigh').addEventListener('change',e=>{st.high=e.target.checked;render();});
 document.getElementById('q').addEventListener('input',e=>{st.q=e.target.value.toLowerCase().trim();render();updateSummary();});
 // ============ PERSISTANCE automatique (site hébergé en https) ============
