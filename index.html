@@ -182,7 +182,7 @@
   </div>
   </div>
 </div>
-<div id="savehint" class="savehint">✅ <b>Tes cases cochées sont enregistrées automatiquement</b> sur cet appareil. Tu peux fermer la page et revenir : tout est retenu. (Chaque personne a sa propre progression sur son téléphone/ordinateur.) Sur le terrain, tape <b>📍 Autour de moi</b> : les lieux restants se trient du plus proche au plus loin.</div>
+<div id="savehint" class="savehint">✅ <b>Tes cases cochées sont enregistrées automatiquement</b> sur cet appareil. Tu peux fermer la page et revenir : tout est retenu. (Chaque personne a sa propre progression sur son téléphone/ordinateur.) Sur le terrain, tape <b>📍 Autour de moi</b> : les lieux restants s'enchaînent en un itinéraire de proche en proche depuis ta position — suis simplement la liste de haut en bas.</div>
 <div id="content"></div>
 <footer>
   <p><strong>Vérification.</strong> Chaque lieu a été contrôlé (existence, adresse, horaires) via recherche web. <b>[C]</b> = confiance moyenne : donnée à reconfirmer (source unique, horaires variables selon saison). Les autres sont en confiance haute. Malgré tout, appelle ou vérifie sur Google Maps avant un long trajet — les commerces littoraux changent vite et les plages sont saisonnières (≈ avril-septembre).</p>
@@ -243,11 +243,41 @@ function hav(a,b){const R=6371000,r=Math.PI/180;
   const h=Math.sin(dp/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dl/2)**2;
   return 2*R*Math.asin(Math.sqrt(h));}
 function fmtDist(m){return m<950 ? 'à '+Math.max(10,Math.round(m/10)*10)+' m' : 'à '+(m/1000).toFixed(1).replace('.',',')+' km';}
+// Itinéraire de proche en proche depuis `start` : chaque lieu de la liste est voisin du précédent.
+function chainFrom(start,arr){
+  const withC=arr.filter(x=>x.lat), noC=arr.filter(x=>!x.lat);
+  const n=withC.length; if(!n)return arr;
+  const pts=withC.map(x=>[x.lat,x.lng]);
+  // plus proche voisin
+  const used=new Array(n).fill(false), order=[];
+  let cur=start;
+  for(let k=0;k<n;k++){
+    let bi=-1,bd=Infinity;
+    for(let i=0;i<n;i++) if(!used[i]){const dd=hav(cur,pts[i]); if(dd<bd){bd=dd;bi=i;}}
+    used[bi]=true; order.push(bi); cur=pts[bi];
+  }
+  // 2-opt léger : décroise le chemin (départ fixe = ta position), seulement sur listes raisonnables
+  if(n<=60){
+    const L=o=>{let s=hav(start,pts[o[0]]);for(let i=0;i<o.length-1;i++)s+=hav(pts[o[i]],pts[o[i+1]]);return s;};
+    let best=L(order),improved=true,guard=0;
+    while(improved&&guard++<5){improved=false;
+      for(let i=0;i<n-1;i++)for(let j=i+1;j<n;j++){
+        const cand=order.slice(0,i).concat(order.slice(i,j+1).reverse(),order.slice(j+1));
+        const l=L(cand); if(l<best-1){order.length=0;order.push(...cand);best=l;improved=true;}
+      }
+    }
+  }
+  // annoter la distance de chaque étape (depuis le point précédent)
+  const out=order.map((idx,k)=>{const x=withC[idx];
+    x._leg = k===0 ? hav(start,pts[idx]) : hav(pts[order[k-1]],pts[idx]);
+    x._first = (k===0); return x;});
+  return out.concat(noC);
+}
 function idOf(x){return (x.g+'|'+x.n+'|'+x.v).replace(/"/g,'');}
 function sortLieux(arr){
   const ORD={A:0,B:1,C:2,D:3,E:4,F:5,G:6,H:7},RC={Forte:0,Moyenne:1,Faible:2},CF={haute:0,moyenne:1,faible:2};
   const a=[...arr];
-  if(st.near&&geopos){a.sort((x,y)=>(x.lat?hav(geopos,[x.lat,x.lng]):1e12)-(y.lat?hav(geopos,[y.lat,y.lng]):1e12));return a;}
+  if(st.near&&geopos){return chainFrom(geopos,a);}
   if(st.sort==='tour')a.sort((x,y)=>(VORDER.indexOf(x.v)-VORDER.indexOf(y.v))||((x.t??999)-(y.t??999)));
   else if(st.sort==='nom')a.sort((x,y)=>x.n.localeCompare(y.n,'fr'));
   else if(st.sort==='ville')a.sort((x,y)=>x.v.localeCompare(y.v,'fr')||x.n.localeCompare(y.n,'fr'));
@@ -272,7 +302,7 @@ function cardHTML(x,i){
   return '<li class="lieu" data-id="'+id+'" style="--d:'+d+'ms">'
     +'<label class="chkwrap"><input type="checkbox" class="chk" aria-label="Marquer comme fait"></label>'
     +'<div class="info"><div class="nom">'+x.n+conc+cmoy+'</div>'
-    +'<div class="meta">'+((st.near&&geopos&&x.lat)?'<span class="dist">'+fmtDist(hav(geopos,[x.lat,x.lng]))+'</span> · ':'')+'<span class="comm">'+comm+'</span>'+(x.a?' · '+x.a:'')+'</div>'
+    +'<div class="meta">'+((st.near&&geopos&&x._leg!=null)?'<span class="dist">'+(x._first?'':'puis ')+fmtDist(x._leg)+'</span> · ':'')+'<span class="comm">'+comm+'</span>'+(x.a?' · '+x.a:'')+'</div>'
     +(x.o?'<div class="hor"><b>Horaires :</b> '+x.o+'</div>':'')
     +(x.vn?'<div class="vn">'+x.vn+(x.src?' — '+x.src:'')+'</div>':(x.src?'<div class="vn src">'+x.src+'</div>':''))
     +'</div>'
