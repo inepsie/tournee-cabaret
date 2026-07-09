@@ -102,13 +102,21 @@
     font-size:.85rem;max-width:72ch}
   footer strong{color:var(--ink)}
   .hidden{display:none!important}
+  #filterbar{display:none}
+  .fsummary{font-size:.78rem;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+  #filtertoggle[aria-expanded="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+  @media (max-width:700px){
+    #filterbar{display:flex;align-items:center;gap:.55rem;margin-bottom:0}
+    #filterpanel{display:none;padding-top:.5rem}
+    #filterpanel.open{display:block}
+  }
   @media (max-width:560px){li.lieu{grid-template-columns:auto 1fr}.badges{grid-column:2;flex-direction:row;margin-top:.3rem}}
 </style>
 <div class="wrap">
 <header>
   <div class="eyebrow">Tournée terrain · données vérifiées</div>
   <h1>Lieux de diffusion — vérifiés</h1>
-  <p class="lede">Les meilleurs endroits pour afficher et déposer les flyers du spectacle, sur 9 villes du littoral. Existence, adresse et horaires contrôlés par recherche web. Filtre par ville, trie, cherche, et coche au fur et à mesure — ta progression est gardée sur cet appareil.</p>
+  <p class="lede">Les meilleurs endroits pour afficher et déposer les flyers du spectacle, sur 13 villes, du Grau-du-Roi à Montpellier et Agde. Existence, adresse et horaires contrôlés par recherche web. Filtre par ville, trie, cherche, et coche au fur et à mesure — ta progression est gardée sur cet appareil.</p>
   <div class="bar">
     <div class="stat"><div class="n" id="s-tot">—</div><div class="l">Lieux vérifiés</div></div>
     <div class="stat"><div class="n" id="s-done">0</div><div class="l">Cochés</div></div>
@@ -118,6 +126,11 @@
   </div>
 </header>
 <div class="controls">
+  <div class="ctrl-row" id="filterbar">
+    <button class="f" id="filtertoggle" aria-expanded="false" aria-controls="filterpanel">☰ Filtres</button>
+    <span id="filtersummary" class="fsummary">Toutes les villes · toutes familles</span>
+  </div>
+  <div id="filterpanel">
   <div class="ctrl-row" id="villerow"><span class="gl">Ville</span></div>
   <div class="ctrl-row" id="famrow"><span class="gl">Famille</span></div>
   <div class="ctrl-row">
@@ -131,6 +144,7 @@
     <label class="toggle"><input type="checkbox" id="onlyhigh"> Confiance haute seulement</label>
     <input id="q" type="search" placeholder="Rechercher un lieu, une rue…" autocomplete="off">
     <button class="reset" id="reset">Tout décocher</button>
+  </div>
   </div>
 </div>
 <div id="savehint" class="savehint">✅ <b>Tes cases cochées sont enregistrées automatiquement</b> sur cet appareil. Tu peux fermer la page et revenir : tout est retenu. (Chaque personne a sa propre progression sur son téléphone/ordinateur.)</div>
@@ -239,14 +253,30 @@ function render(){
   document.getElementById('s-vis').textContent=vis;
   restore();bindChecks();
 }
+// ---- Panneau de filtres repliable (mobile) ----
+const fpanel=document.getElementById('filterpanel');
+const ftog=document.getElementById('filtertoggle');
+const fsum=document.getElementById('filtersummary');
+const isMobile=()=>window.matchMedia('(max-width:700px)').matches;
+ftog.addEventListener('click',()=>{
+  const open=fpanel.classList.toggle('open');
+  ftog.setAttribute('aria-expanded',open?'true':'false');
+});
+function updateSummary(){
+  const ville=st.v==='all'?'Toutes les villes':(VSHORT[st.v]||st.v);
+  const fam=st.g==='all'?'toutes familles':'famille '+st.g;
+  fsum.textContent=ville+' · '+fam+(st.q?' · « '+st.q+' »':'');
+}
 document.querySelectorAll('.controls .f[data-d]').forEach(b=>b.addEventListener('click',()=>{
   const dim=b.dataset.d;st[dim]=b.dataset.v;
   document.querySelectorAll('.f[data-d="'+dim+'"]').forEach(o=>o.setAttribute('aria-pressed',o.dataset.v===st[dim]?'true':'false'));
-  render();
+  render();updateSummary();
+  // sur mobile : choisir une ville/famille referme le panneau pour libérer l'écran
+  if(isMobile()&&(dim==='v'||dim==='g')){fpanel.classList.remove('open');ftog.setAttribute('aria-expanded','false');}
 }));
 document.getElementById('sort').addEventListener('change',e=>{st.sort=e.target.value;render();});
 document.getElementById('onlyhigh').addEventListener('change',e=>{st.high=e.target.checked;render();});
-document.getElementById('q').addEventListener('input',e=>{st.q=e.target.value.toLowerCase().trim();render();});
+document.getElementById('q').addEventListener('input',e=>{st.q=e.target.value.toLowerCase().trim();render();updateSummary();});
 // ============ PERSISTANCE automatique (site hébergé en https) ============
 // En https, localStorage fonctionne sur tous les navigateurs (Safari, iPhone, KDE…).
 // Les coches sont retenues par appareil, sans aucune action de l'utilisateur.
@@ -269,6 +299,7 @@ document.getElementById('reset').addEventListener('click',()=>{
   checked={};persist();
   document.querySelectorAll('.chk').forEach(c=>{c.checked=false;c.closest('li').classList.remove('done');});count();});
 render();
+updateSummary();
 </script>
 </body>
 </html>
