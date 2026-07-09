@@ -414,13 +414,11 @@ function nearOffFn(){st.near=false;setNearUI();render();updateSummary();
 }
 document.querySelectorAll('.nearbtn').forEach(b=>b.addEventListener('click',()=>nearOn(false)));
 document.querySelectorAll('.nearoff').forEach(b=>b.addEventListener('click',nearOffFn));
-// Mode par défaut : si la localisation est déjà autorisée (visites suivantes), on démarre en Autour de moi
+// Mode par défaut : Autour de moi démarre dès l'ouverture (demande la position immédiatement).
+// Seule exception : la personne a quitté le mode avec ✕ (choix mémorisé). Échec = liste normale, sans bruit.
 (function(){
   let off=false; try{off=localStorage.getItem(NEARPREF)==='1';}catch(e){}
-  if(off)return;
-  if(navigator.permissions&&navigator.permissions.query){
-    navigator.permissions.query({name:'geolocation'}).then(s=>{if(s.state==='granted')nearOn(true);}).catch(()=>{});
-  }
+  if(!off)nearOn(true);
 })();
 render();
 updateSummary();
