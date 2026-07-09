@@ -90,6 +90,9 @@
   .chk:active{transform:scale(.9)}
   .chk:checked{background:var(--accent);border-color:var(--accent)}
   .chk:checked::after{content:"✓";color:#fff;font-size:.85rem;font-weight:700;display:grid;place-items:center;line-height:1.05}
+  @keyframes chkPop{from{transform:scale(.25);opacity:0;filter:blur(4px)}to{transform:scale(1);opacity:1;filter:blur(0)}}
+  .chk.just:checked::after{animation:chkPop .3s cubic-bezier(0.2,0,0,1)}
+  @media (prefers-reduced-motion:reduce){.chk.just:checked::after{animation:none}}
   .chk:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   .info .nom{font-weight:650;font-size:.95rem}
   .tag{font-size:.58rem;font-weight:800;padding:.1rem .42rem;border-radius:6px;margin-left:.45rem;
@@ -323,6 +326,7 @@ function store(){
 function restore(){document.querySelectorAll('li.lieu').forEach(li=>{const c=!!checked[li.dataset.id];
   li.querySelector('.chk').checked=c;li.classList.toggle('done',c);});count();}
 function bindChecks(){document.querySelectorAll('.chk').forEach(c=>c.addEventListener('change',e=>{
+  if(e.target.checked){e.target.classList.add('just');setTimeout(()=>e.target.classList.remove('just'),350);}
   e.target.closest('li').classList.toggle('done',e.target.checked);store();}));}
 function count(){document.getElementById('s-done').textContent=Object.keys(checked).length;}
 document.getElementById('reset').addEventListener('click',()=>{
